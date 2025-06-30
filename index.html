@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Thought Constellation</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    #canvas { position: relative; height: 90vh; }
+    .star { width: 12px; height: 12px; background: black; border-radius: 50%; position: absolute; cursor: pointer; }
+    .line { position: absolute; background: black; height: 2px; transform-origin: left center; }
+  </style>
+</head>
+<body class="bg-white p-4 text-sm">
+  <h1 class="text-xl font-bold mb-2">Thought Constellation</h1>
+  <div class="border p-2 rounded mb-4">Click to add a thought. Drag between stars to connect.</div>
+  <div id="canvas" class="border rounded bg-gray-50" onclick="addStar(event)"></div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    let stars = [];
+    let lines = [];
+    let dragging = null;
+
+    function addStar(e) {
+      if (e.target !== canvas) return;
+      const name = prompt("Name this thought:");
+      if (!name) return;
+
+      const star = document.createElement('div');
+      star.className = 'star';
+      star.title = name;
+      star.style.left = `${e.offsetX - 6}px`;
+      star.style.top = `${e.offsetY - 6}px`;
+      canvas.appendChild(star);
+
+      star.dataset.x = e.offsetX;
+      star.dataset.y = e.offsetY;
+      star.dataset.name = name;
+      stars.push(star);
+
+      star.onmousedown = () => dragging = star;
+      star.onmouseup = () => {
+        if (dragging && dragging !== star) connectStars(dragging, star);
+        dragging = null;
+      };
+
+      saveState();
+    }
+
+    function connectStars(a, b) {
+      const x1 = parseFloat(a.dataset.x);
+      const y1 = parseFloat(a.dataset.y);
+      const x2 = parseFloat(b.dataset.x);
+      const y2 = parseFloat(b.dataset.y);
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      const line = document.createElement('div');
+      line.className = 'line';
+      line.style.left = `${x1}px`;
+      line.style.top = `${y1}px`;
+      line.style.width = `${dist}px`;
+      line.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
+      canvas.appendChild(line);
+      lines.push({ from: a.dataset.name, to: b.dataset.name, element: line });
+
+      saveState();
+    }
+
+    function saveState() {
+      const savedStars = stars.map(s => ({
+        x: s.dataset.x, y: s.dataset.y, name: s.dataset.name
+      }));
+      const savedLines = lines.map(l => ({ from: l.from, to: l.to }));
+      localStorage.setItem('constellation', JSON.stringify({ savedStars, savedLines }));
+    }
+
+    function loadState() {
+      const data = JSON.parse(localStorage.getItem('constellation'));
+      if (!data) return;
+      data.savedStars.forEach(s => {
+        const star = document.createElement('div');
+        star.className = 'star';
+        star.title = s.name;
+        star.style.left = `${s.x - 6}px`;
+        star.style.top = `${s.y - 6}px`;
+        star.dataset.x = s.x;
+        star.dataset.y = s.y;
+        star.dataset.name = s.name;
+        star.onmousedown = () => dragging = star;
+        star.onmouseup = () => {
+          if (dragging && dragging !== star) connectStars(dragging, star);
+          dragging = null;
+        };
+        canvas.appendChild(star);
+        stars.push(star);
+      });
+
+      data.savedLines.forEach(l => {
+        const a = stars.find(s => s.dataset.name === l.from);
+        const b = stars.find(s => s.dataset.name === l.to);
+        if (a && b) connectStars(a, b);
+      });
+    }
+
+    loadState();
+  </script>
+</body>
+</html>
